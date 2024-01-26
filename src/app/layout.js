@@ -1,9 +1,9 @@
-import { Inter as FontSans } from "next/font/google"
-import '@/styles/globals.css'
-import { cn } from '@/lib/utils'
 import { Provider } from '@/components/ThemeProvider'
+import { Roboto_Mono } from 'next/font/google'
+import { cn } from '@/lib/utils'
+import '@/styles/globals.css'
 
-export const fontSans = FontSans({
+export const fontSans = Roboto_Mono({
   subsets: ["latin"],
   variable: "--font-sans",
 })

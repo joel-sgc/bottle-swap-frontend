@@ -12,8 +12,6 @@ export default function Page() {
   const [nickname, setNickname] = useState('Anonymous');
   const [users, setUsers] = useState([]);
   const [uuid, setUUID] = useState('Loading...');
-  console.log(users)
-
 
   socket.on('user-joined', ( data ) => {
     // Have to JSON.parse because socket.io doesn't support sending Maps
@@ -26,35 +24,45 @@ export default function Page() {
   socket.on('nickname-update', (newPlayerData) => {
     // Have to JSON.parse because socket.io doesn't support sending Maps
     let playerData = new Map(JSON.parse(newPlayerData));
-    console.log(playerData)
 
     // Set the users nicknames to the new Map
     setUsers(Array.from(playerData.values()));
   })
 
+
+
   useEffect(() => {
-    let uuid = uuidv4();
-    // If we don't have a uuid in sessionStorage, set it
-    // Otherwise, set the uuid state to the uuid in sessionStorage
+    let newUUID = uuidv4();
+
+    // // If we don't have a uuid in sessio nStorage, set it
+    // // Otherwise, set the uuid state to the uuid in sessionStorage
     if (!sessionStorage.getItem('bottle-swap-uuid')) {
-      sessionStorage.setItem('bottle-swap-uuid', uuid);
-      setUUID(uuid)
+      sessionStorage.setItem('bottle-swap-uuid', newUUID);
+      setUUID(newUUID)
     } else {
       setUUID(sessionStorage.getItem('bottle-swap-uuid'))
     }
-
-    // When the user leaves the page, close the socket
-    window.addEventListener('beforeunload', () => {
-      socket.emit('console', 'closed')
-      socket.close();
-    });
-
+    
     // Generate a new room code
     const generateRoom = async() => {
-      setRoomCode(await socket.emitWithAck('get-new-code', uuid));
+      setRoomCode(await socket.emitWithAck('get-new-code', sessionStorage.getItem('bottle-swap-uuid'), nickname));
     }
     generateRoom();
   }, [])
+
+  // Disconnection stuff
+  useEffect(() => {
+    const disconnect = () => {
+      socket.emit('check-disconnect', uuid, roomCode)
+    }
+
+    // When the user leaves the page, close the socket
+    window.addEventListener('beforeunload', disconnect);
+
+    return () => {
+      window.removeEventListener('beforeunload', disconnect)
+    }
+  }, [roomCode])
 
   return (
     <main className='container h-screen flex items-center justify-center flex-col gap-8'>

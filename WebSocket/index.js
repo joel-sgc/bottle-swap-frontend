@@ -1,19 +1,23 @@
 import { Server } from 'socket.io'
 
+
 const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const colorOptions = ['red', 'white', 'rose', 'green', 'yellow', 'orange', 'purple', 'magenta', 'lavender', ''];
 
 const io = new Server(4000);
 const rooms = new Map();
 
-io.on('connection', (socket) => {
-
+io.on('connection', async (socket) => {
   // Debug event
   socket.on('console', (args) => console.log(args));
 
+  socket.on('register-player', (uuid, code, nickname) => {
+    rooms.get(code).players.set(uuid, nickname);
+  });
+
   // We generate 6-length string that corresponds to the current room
   // Other users can then connect to this room through this room code
-  socket.on("get-new-code", (callback) => {
+  socket.on("get-new-code", (uuid, nickname, callback) => {
     let roomCode = generateRoomCode();
     let bottles = getRandomItems(colorOptions, 5);
 
@@ -23,15 +27,17 @@ io.on('connection', (socket) => {
       players: new Map()
     });
 
+    rooms.get(roomCode).players.set(uuid, nickname);
+
     socket.join(roomCode);
 
-    rooms.get(roomCode).players
-    callback(roomCode)
+    rooms.get(roomCode).players;
+    callback(roomCode);
   });
 
   // Get users in room
   socket.on('get-users', async (roomCode, callback) => {
-    let clients = io.sockets.adapter.rooms.get(roomCode)
+    let clients = io.sockets.adapter.rooms.get(roomCode);
 
     callback(clients.size);
   });
@@ -53,22 +59,24 @@ io.on('connection', (socket) => {
   socket.on('set-nickname', async(uuid, nickname, roomCode) => {
     socket.nickname = nickname;
     rooms.get(roomCode).players.set(uuid, nickname);
-    console.log(uuid, nickname)
-    console.log(rooms.get(roomCode).players)
 
-    let players = Array.from(rooms.get(roomCode).players)
+    let players = Array.from(rooms.get(roomCode).players);
     socket.to(roomCode).emit('nickname-update', JSON.stringify(players));
   })
 
   // Check if we need to remove any empty rooms from our rooms Map
-  socket.on('disconnect', (uuid, roomCode) => {
-    // Send a message to the other users in the room that this user left
-    socket.to(roomCode).emit('user-left');
-
-    // If the room is empty, delete it from our rooms Map
-    if (io.sockets.adapter.rooms.get(roomCode)?.size === 0) {
+  socket.on('check-disconnect', (uuid, roomCode) => {
+    // Remove player from that rooms Map
+    rooms.get(roomCode).players.delete(uuid);
+    
+    if (rooms.get(roomCode).players.size === 0) {
+      // If empty, delete the room from the Map
       rooms.delete(roomCode);
+    } else {
+      // If not empty, send a message to the other users in the room that this user left
+      socket.to(roomCode).emit('user-left', uuid);
     }
+
   })
 });
 
