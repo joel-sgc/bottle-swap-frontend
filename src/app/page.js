@@ -18,9 +18,6 @@ export default function Page() {
   const [users, setUsers] = useState(new Map());          // The users in the room
   const [uuid, setUUID] = useState('Loading...');         // The user's UUID
   const [activeuuid, setActiveuuid] = useState('');       // The UUID of the user whose turn it is
-  const [sortable, setSortable] = useState();
-  const [left, setLeft] = useState(0);
-
 
   socket.on('update-users', (players) => {
     let playerData = new Map(JSON.parse(players));
@@ -49,14 +46,12 @@ export default function Page() {
 
   // After every move
   socket.on('move', (newOrder, activePlayerUUID) => {
-    console.log(newOrder)
-
     if (activePlayerUUID !== sessionStorage.getItem('bottle-swap-uuid')) {
       var elems = document.getElementById('bottleContainer').children;
 
       var currentOrder = [];
       for (let i = 0; i < elems.length; i++) {
-        currentOrder.push(elems[i].children[0].getAttribute('variant'));
+        currentOrder.push(elems[i].getAttribute('variant'));
       }
 
       let elementGoRight = null, elementGoLeft = null, distance = -1;
@@ -64,10 +59,10 @@ export default function Page() {
       for (let i = 0; i < newOrder.length; i++) {
         if (newOrder[i] !== currentOrder[i]) {
           if (elementGoRight === null) {
-            elementGoRight = elems[i].children[0];
+            elementGoRight = elems[i];
             distance = 0;
           } else {
-            elementGoLeft = elems[i].children[0];
+            elementGoLeft = elems[i];
             break;
           }
         }
@@ -75,14 +70,20 @@ export default function Page() {
         if (distance !== -1) distance += 200;
       }
 
+
+      elementGoLeft.style.transition = 'transform 0.2s ease-in-out';
+      elementGoRight.style.transition = 'transform 0.2s ease-in-out';
+
       elementGoRight.style.transform = `translateX(${distance}px)`;
       elementGoLeft.style.transform = `translateX(-${distance}px)`;
 
       setTimeout(() => {
+        elementGoLeft.style.transition = '';
+        elementGoRight.style.transition = '';
         elementGoLeft.style.transform = '';
         elementGoRight.style.transform = '';
         setBottleOrder(newOrder);
-      }, 150)
+      }, 200)
     }
   });
 
@@ -118,43 +119,33 @@ export default function Page() {
     }
 
     // Sortable stuff
-    if (document) {
-      Sortable.prototype.moveItem = (index, toIndex) => {
-        var itemEl = this.el.children[index],
-        toEl = this.el.children[toIndex];
-  
-        this.el.insertBefore(itemEl, toEl && (+toIndex ? toEl.nextElementSibling : toEl));
-      }
+    Sortable.create(document.getElementById('bottleContainer'), {
+      swap: true,
+      animation: 150,
+      direction: 'horizontal',
+
+      onEnd: function (evt) {
+        var itemEl = evt.item;  // dragged HTMLElement
+        evt.to;    // target list
+        evt.from;  // previous list
+        evt.oldIndex;  // element's old index within old parent
+        evt.newIndex;  // element's new index within new parent
+        evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+        evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+        evt.clone // the clone element
+        evt.pullMode;  // when item is in another sortable: `"clone"` if cloning, `true` if moving
 
 
-      setSortable(Sortable.create(document.getElementById('bottleContainer'), {
-        swap: true,
-        animation: 150,
-        direction: 'horizontal',
+        var elemContainer = document.getElementById('bottleContainer')
 
-        onEnd: function (evt) {
-          // var itemEl = evt.item;  // dragged HTMLElement
-          evt.to;    // target list
-          evt.from;  // previous list
-          evt.oldIndex;  // element's old index within old parent
-          evt.newIndex;  // element's new index within new parent
-          evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-          evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-          evt.clone // the clone element
-          evt.pullMode;  // when item is in another sortable: `"clone"` if cloning, `true` if moving
-
-
-          var elemContainer = document.getElementById('bottleContainer')
-
-          let newOrder = [];
-          for (let i = 0; i < elemContainer.children.length; i++) {
-            newOrder.push(elemContainer.children[i].children[0].getAttribute('variant'));
-          }
-  
-          socket.emit('move', roomCode, newOrder);
+        let newOrder = [];
+        for (let i = 0; i < elemContainer.children.length; i++) {
+          newOrder.push(elemContainer.children[i].children[0].getAttribute('variant'));
         }
-      }));
-    }
+
+        socket.emit('move', roomCode, newOrder);
+      }
+    });
 
     // When the user leaves the page, close the socket
     window.addEventListener('beforeunload', disconnect);
@@ -172,12 +163,12 @@ export default function Page() {
             <div id='bottleContainer' className='relative flex'>
               {activeuuid === uuid ? (
                 <>
-                  <div variant={bottleOrder[0]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[0]} key={bottleOrder[0]}/></div>
-                  <div variant={bottleOrder[1]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[1]} key={bottleOrder[1]}/></div>
-                  <div variant={bottleOrder[2]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[2]} key={bottleOrder[2]}/></div>
-                  <div variant={bottleOrder[3]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[3]} key={bottleOrder[3]}/></div>
-                  <div variant={bottleOrder[4]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[4]} key={bottleOrder[4]}/></div>
-                  <div variant={bottleOrder[5]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[5]} key={bottleOrder[5]}/></div>
+                  <div variant={bottleOrder[0]}><Bottle className='cursor-pointer' variant={bottleOrder[0]} key={bottleOrder[0]}/></div>
+                  <div variant={bottleOrder[1]}><Bottle className='cursor-pointer' variant={bottleOrder[1]} key={bottleOrder[1]}/></div>
+                  <div variant={bottleOrder[2]}><Bottle className='cursor-pointer' variant={bottleOrder[2]} key={bottleOrder[2]}/></div>
+                  <div variant={bottleOrder[3]}><Bottle className='cursor-pointer' variant={bottleOrder[3]} key={bottleOrder[3]}/></div>
+                  <div variant={bottleOrder[4]}><Bottle className='cursor-pointer' variant={bottleOrder[4]} key={bottleOrder[4]}/></div>
+                  <div variant={bottleOrder[5]}><Bottle className='cursor-pointer' variant={bottleOrder[5]} key={bottleOrder[5]}/></div>
                 </>
               ) : (
                 bottleOrder.map((bottle) => (<Bottle variant={bottle} key={bottle}/>))
