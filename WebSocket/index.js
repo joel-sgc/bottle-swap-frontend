@@ -45,8 +45,16 @@ io.on('connection', async (socket) => {
   });
 
   // Join room and let the other users know
-  socket.on('join-room', (uuid, roomCode, nickname, callback) => {
+  socket.on('join-room', (uuid, oldRoomCode, roomCode, nickname, callback) => {
     socket.join(roomCode);
+
+    // Delete the user from the old room
+    rooms.get(oldRoomCode)?.players.delete(uuid);
+
+    // If the old room is empty, delete it
+    if (rooms.get(oldRoomCode)?.players.size === 0) {
+      rooms.delete(oldRoomCode);
+    } 
 
     rooms.get(roomCode)?.players.set(uuid, nickname);
 
@@ -74,32 +82,48 @@ io.on('connection', async (socket) => {
     callback(JSON.stringify(players));
   })
 
+  // After every move
   socket.on('move', (roomCode, newOrder) => {
-    if (roomCode === "Loading...") return;
+    if (roomCode === "Loading..." || !rooms.has(roomCode)) return;
 
     // Set the new order and send it to the room
-    rooms.get(roomCode).currentOrder = newOrder;
-    socket.to(roomCode).emit('move', newOrder, rooms.get(roomCode).activePlayer);
+    const room = rooms.get(roomCode);
+    if (room) {
+      room.currentOrder = newOrder;
+      socket.in(roomCode).emit('move', newOrder);
+    }
   });
+
 
   // After every turn
   socket.on('turn-complete', (roomCode, newOrder, currentPlayer) => {
+    // Check if the room exists
+    if (!rooms.has(roomCode)) {
+      console.error(`Room with code ${roomCode} not found.`);
+      return;
+    }
+  
+    const room = rooms.get(roomCode);
+    if (!room) {
+      console.error(`Failed to retrieve room data for code ${roomCode}.`);
+      return;
+    }
+  
     // Find next active user
-    let playerArray = Array.from(rooms.get(roomCode)?.players?.keys() || []);
-
+    let playerArray = Array.from(room.players?.keys() || []);
+  
     let currentIndex = playerArray.indexOf(currentPlayer);
     let nextIndex = (currentIndex + 1) % playerArray.length;
-
+  
     let newPlayer = playerArray[nextIndex];
-
+  
     // Set the new order
-    rooms.get(roomCode).currentOrder = newOrder;
-
+    room.currentOrder = newOrder;
+  
     // Send the new order and the new active player to the room
-    socket.in(roomCode).emit('turn-update', newOrder, newPlayer);
+    socket.to(roomCode).emit('turn-update', newOrder, newPlayer);
   });
-
-
+  
 
   // Check if we need to remove any empty rooms from our rooms Map
   socket.on('check-disconnect', (uuid, roomCode) => {

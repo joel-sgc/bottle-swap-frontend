@@ -45,46 +45,44 @@ export default function Page() {
   });
 
   // After every move
-  socket.on('move', (newOrder, activePlayerUUID) => {
-    if (activePlayerUUID !== sessionStorage.getItem('bottle-swap-uuid')) {
-      var elems = document.getElementById('bottleContainer').children;
+  socket.on('move', (newOrder) => {
+    var elems = document.getElementById('bottleContainer').children;
 
-      var currentOrder = [];
-      for (let i = 0; i < elems.length; i++) {
-        currentOrder.push(elems[i].getAttribute('variant'));
-      }
-
-      let elementGoRight = null, elementGoLeft = null, distance = -1;
-
-      for (let i = 0; i < newOrder.length; i++) {
-        if (newOrder[i] !== currentOrder[i]) {
-          if (elementGoRight === null) {
-            elementGoRight = elems[i];
-            distance = 0;
-          } else {
-            elementGoLeft = elems[i];
-            break;
-          }
-        }
-
-        if (distance !== -1) distance += 200;
-      }
-
-
-      elementGoLeft.style.transition = 'transform 0.2s ease-in-out';
-      elementGoRight.style.transition = 'transform 0.2s ease-in-out';
-
-      elementGoRight.style.transform = `translateX(${distance}px)`;
-      elementGoLeft.style.transform = `translateX(-${distance}px)`;
-
-      setTimeout(() => {
-        elementGoLeft.style.transition = '';
-        elementGoRight.style.transition = '';
-        elementGoLeft.style.transform = '';
-        elementGoRight.style.transform = '';
-        setBottleOrder(newOrder);
-      }, 200)
+    var currentOrder = [];
+    for (let i = 0; i < elems.length; i++) {
+      currentOrder.push(elems[i].getAttribute('variant'));
     }
+
+    let elementGoRight = null, elementGoLeft = null, distance = -1;
+
+    for (let i = 0; i < newOrder.length; i++) {
+      if (newOrder[i] !== currentOrder[i]) {
+        if (elementGoRight === null) {
+          elementGoRight = elems[i];
+          distance = 0;
+        } else {
+          elementGoLeft = elems[i];
+          break;
+        }
+      }
+
+      if (distance !== -1) distance += 200;
+    }
+
+
+    elementGoLeft.style.transition = 'transform 0.2s ease-in-out';
+    elementGoRight.style.transition = 'transform 0.2s ease-in-out';
+
+    elementGoRight.style.transform = `translateX(${distance}px)`;
+    elementGoLeft.style.transform = `translateX(-${distance}px)`;
+
+    setTimeout(() => {
+      elementGoLeft.style.transition = '';
+      elementGoRight.style.transition = '';
+      elementGoLeft.style.transform = '';
+      elementGoRight.style.transform = '';
+      setBottleOrder(newOrder);
+    }, 200)
   });
 
   useEffect(() => {
@@ -135,16 +133,18 @@ export default function Page() {
         evt.clone // the clone element
         evt.pullMode;  // when item is in another sortable: `"clone"` if cloning, `true` if moving
 
-
         var elemContainer = document.getElementById('bottleContainer')
 
         let newOrder = [];
         for (let i = 0; i < elemContainer.children.length; i++) {
           newOrder.push(elemContainer.children[i].children[0].getAttribute('variant'));
         }
+        
+        // The reason we're not using the state is because the state is not updated within this function.
+        // It takes the value, but not the reference, so this function will have the wrong value.
 
-        socket.emit('move', roomCode, newOrder);
-      }
+        socket.emit('move', itemEl.getAttribute('roomCode'), newOrder);
+      } 
     });
 
     // When the user leaves the page, close the socket
@@ -163,12 +163,12 @@ export default function Page() {
             <div id='bottleContainer' className='relative flex'>
               {activeuuid === uuid ? (
                 <>
-                  <div variant={bottleOrder[0]}><Bottle className='cursor-pointer' variant={bottleOrder[0]} key={bottleOrder[0]}/></div>
-                  <div variant={bottleOrder[1]}><Bottle className='cursor-pointer' variant={bottleOrder[1]} key={bottleOrder[1]}/></div>
-                  <div variant={bottleOrder[2]}><Bottle className='cursor-pointer' variant={bottleOrder[2]} key={bottleOrder[2]}/></div>
-                  <div variant={bottleOrder[3]}><Bottle className='cursor-pointer' variant={bottleOrder[3]} key={bottleOrder[3]}/></div>
-                  <div variant={bottleOrder[4]}><Bottle className='cursor-pointer' variant={bottleOrder[4]} key={bottleOrder[4]}/></div>
-                  <div variant={bottleOrder[5]}><Bottle className='cursor-pointer' variant={bottleOrder[5]} key={bottleOrder[5]}/></div>
+                  <div variant={bottleOrder[0]} roomcode={roomCode}><Bottle className='cursor-pointer' variant={bottleOrder[0]} key={bottleOrder[0]}/></div>
+                  <div variant={bottleOrder[1]} roomcode={roomCode}><Bottle className='cursor-pointer' variant={bottleOrder[1]} key={bottleOrder[1]}/></div>
+                  <div variant={bottleOrder[2]} roomcode={roomCode}><Bottle className='cursor-pointer' variant={bottleOrder[2]} key={bottleOrder[2]}/></div>
+                  <div variant={bottleOrder[3]} roomcode={roomCode}><Bottle className='cursor-pointer' variant={bottleOrder[3]} key={bottleOrder[3]}/></div>
+                  <div variant={bottleOrder[4]} roomcode={roomCode}><Bottle className='cursor-pointer' variant={bottleOrder[4]} key={bottleOrder[4]}/></div>
+                  <div variant={bottleOrder[5]} roomcode={roomCode}><Bottle className='cursor-pointer' variant={bottleOrder[5]} key={bottleOrder[5]}/></div>
                 </>
               ) : (
                 bottleOrder.map((bottle) => (<Bottle variant={bottle} key={bottle}/>))
@@ -177,16 +177,16 @@ export default function Page() {
             {(activeuuid === uuid) && (
               <Button key={activeuuid} className='w-full' onClick={() => {
                 var elem = document.getElementById('bottleContainer')
-
+              
                 let newOrder = [];
                 for (let i = 0; i < elem.children.length; i++) {
                   newOrder.push(elem.children[i].children[0].getAttribute('variant'));
                 }
-
+              
                 setBottleOrder(newOrder);
-
+              
                 socket.emit('turn-complete', roomCode, newOrder, uuid);
-              }}>Done</Button>
+              }}>Done</Button>              
             )}
           </div>
 
@@ -199,7 +199,7 @@ export default function Page() {
             if (uuid === 'Loading...' || roomCode === 'Loading...' || e.target.roomCode.value.trim().length !== 6) return;
 
             let code = e.target.roomCode.value;
-            let { newPlayers, newOrder } = await socket.emitWithAck('join-room', uuid, code, nickname);
+            let { newPlayers, newOrder } = await socket.emitWithAck('join-room', uuid, roomCode, code, nickname);
             setBottleOrder(newOrder);
             setUsers(new Map(JSON.parse(newPlayers)));
             
