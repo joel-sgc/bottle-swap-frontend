@@ -49,6 +49,8 @@ export default function Page() {
 
   // After every move
   socket.on('move', (newOrder, activePlayerUUID) => {
+    console.log(newOrder)
+
     if (activePlayerUUID !== sessionStorage.getItem('bottle-swap-uuid')) {
       var elems = document.getElementById('bottleContainer').children;
 
@@ -77,8 +79,8 @@ export default function Page() {
       elementGoLeft.style.transform = `translateX(-${distance}px)`;
 
       setTimeout(() => {
-        elementGoLeft.style.transform = 'unset';
-        elementGoRight.style.transform = 'unset';
+        elementGoLeft.style.transform = '';
+        elementGoRight.style.transform = '';
         setBottleOrder(newOrder);
       }, 150)
     }
@@ -131,6 +133,7 @@ export default function Page() {
         direction: 'horizontal',
 
         onEnd: function (evt) {
+          // var itemEl = evt.item;  // dragged HTMLElement
           evt.to;    // target list
           evt.from;  // previous list
           evt.oldIndex;  // element's old index within old parent
@@ -167,7 +170,7 @@ export default function Page() {
         <div className='flex gap-8 flex-col'> 
           <div className='flex flex-col gap-8' style={{minHeight: '272px'}}>
             <div id='bottleContainer' className='relative flex'>
-              {true ? (
+              {activeuuid === uuid ? (
                 <>
                   <div variant={bottleOrder[0]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[0]} key={bottleOrder[0]}/></div>
                   <div variant={bottleOrder[1]}><Bottle className='cursor-pointer transition-transform' variant={bottleOrder[1]} key={bottleOrder[1]}/></div>
@@ -188,6 +191,8 @@ export default function Page() {
                 for (let i = 0; i < elem.children.length; i++) {
                   newOrder.push(elem.children[i].children[0].getAttribute('variant'));
                 }
+
+                setBottleOrder(newOrder);
 
                 socket.emit('turn-complete', roomCode, newOrder, uuid);
               }}>Done</Button>
