@@ -11,7 +11,7 @@ export const fontSans = Roboto_Mono({
 export default function RootLayout({ children }) {  
 
   return (
-    <html lang="en">
+    <html suppressHydrationWarning lang="en">
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",

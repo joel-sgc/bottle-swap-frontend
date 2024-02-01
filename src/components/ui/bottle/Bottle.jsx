@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react';
-import { ReactSortable } from 'react-sortablejs';
 
-export const Bottle = ({ variant }) => {
+export const Bottle = ( props ) => {
   let mainFill, secondaryFill;
+  const variant = props.variant || '';
   
   switch (variant) {
     case 'red':
@@ -31,17 +31,9 @@ export const Bottle = ({ variant }) => {
       mainFill = '#FFA500';
       secondaryFill = '#FF8C00';
       break;
-    case 'purple':
-      mainFill = '#800080';
-      secondaryFill = '#6A0DAD';
-      break;
     case 'magenta':
       mainFill = '#FF00FF';
       secondaryFill = '#DA70D6';
-      break;
-    case 'lavender':
-      mainFill = '#E6E6FA';
-      secondaryFill = '#CCCCFF';
       break;
     default:
       mainFill = '#63D3FD';
@@ -51,7 +43,7 @@ export const Bottle = ({ variant }) => {
   
     
   return (
-    <svg height="200px" width="200px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xmlSpace="preserve">
+    <svg {...props} height="200px" width="200px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xmlSpace="preserve">
       <g transform="translate(1 1)">
         <path style={{fill: mainFill}} d="M357.922,246.467c0-13.653-11.947-25.6-25.6-25.6c13.653,0,25.6-11.947,25.6-25.6
           s-11.947-25.6-25.6-25.6h17.067c5.12,0,8.533-4.267,7.68-9.387c-4.267-42.667-40.107-75.947-84.48-75.947
@@ -137,10 +129,11 @@ export const Bottle = ({ variant }) => {
 
 export const DraggableBottles = ({ data }) => {
   const [list, setList] = useState(data)
+  console.log(data)
 
   return (
-    <div className='flex'>
-      {list.map((item) => (
+    <div key={list.length} className='flex'>
+      {list && list.map((item) => (
         <div key={item.id || Math.random() * 10}>{item.object}</div>
       ))}
     </div>
