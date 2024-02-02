@@ -47,11 +47,14 @@ export default function Page() {
   // After every move
   socket.on('move', (newOrder) => {
     var elems = document.getElementById('bottleContainer').children;
-
+    
     var currentOrder = [];
     for (let i = 0; i < elems.length; i++) {
       currentOrder.push(elems[i].getAttribute('variant'));
     }
+
+    // If no change, return
+    if (currentOrder === newOrder) return;
 
     let elementGoRight = null, elementGoLeft = null, distance = -1;
 
@@ -69,20 +72,21 @@ export default function Page() {
       if (distance !== -1) distance += 200;
     }
 
-
-    elementGoLeft.style.transition = 'transform 0.2s ease-in-out';
-    elementGoRight.style.transition = 'transform 0.2s ease-in-out';
-
-    elementGoRight.style.transform = `translateX(${distance}px)`;
-    elementGoLeft.style.transform = `translateX(-${distance}px)`;
-
-    setTimeout(() => {
-      elementGoLeft.style.transition = '';
-      elementGoRight.style.transition = '';
-      elementGoLeft.style.transform = '';
-      elementGoRight.style.transform = '';
-      setBottleOrder(newOrder);
-    }, 200)
+    if (elementGoLeft && elementGoRight) {
+      elementGoLeft.style.transition = 'transform 0.2s ease-in-out';
+      elementGoRight.style.transition = 'transform 0.2s ease-in-out';
+  
+      elementGoLeft.style.transform = `translateX(-${distance}px)`;
+      elementGoRight.style.transform = `translateX(${distance}px)`;
+  
+      setTimeout(() => {
+        elementGoLeft.style.transition = '';
+        elementGoRight.style.transition = '';
+        elementGoLeft.style.transform = '';
+        elementGoRight.style.transform = '';
+        setBottleOrder(newOrder);
+      }, 200) 
+    }
   });
 
   useEffect(() => {
@@ -142,7 +146,6 @@ export default function Page() {
         
         // The reason we're not using the state is because the state is not updated within this function.
         // It takes the value, but not the reference, so this function will have the wrong value.
-
         socket.emit('move', itemEl.getAttribute('roomCode'), newOrder);
       } 
     });
