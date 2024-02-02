@@ -27,10 +27,11 @@ io.on('connection', async (socket) => {
       correctOrder: bottleOrders.originalArray,
       currentOrder: bottleOrders.shuffledArray,
       activePlayer: uuid,
+      winningPlayer: {uuid: '', score: 0},
       players: new Map()
     });
 
-    rooms.get(roomCode).players.set(uuid, nickname);
+    rooms.get(roomCode).players.set(uuid, {name: nickname, score: 0});
     socket.join(roomCode);
 
     callback({code: roomCode, bottles: bottleOrders.shuffledArray});
@@ -56,7 +57,8 @@ io.on('connection', async (socket) => {
       rooms.delete(oldRoomCode);
     } 
 
-    rooms.get(roomCode)?.players.set(uuid, nickname);
+    let player = rooms.get(roomCode)?.players.get(uuid);
+    rooms.get(roomCode)?.players.set(uuid, {name: nickname, score: player?.score || 0});
 
     // Have to convert the Map and take shortcuts because socket.io doesn't support sending Maps
     let players = Array.from(rooms.get(roomCode)?.players);
@@ -73,7 +75,7 @@ io.on('connection', async (socket) => {
   socket.on('set-nickname', async(uuid, nickname, roomCode, callback) => {
     // Set the nickname and send it to the room
     socket.nickname = nickname;
-    rooms.get(roomCode)?.players.set(uuid, nickname);
+    rooms.get(roomCode)?.players.set(uuid, {...rooms.get(roomCode)?.players.get(uuid), name: nickname});
 
     // Have to convert the Map and take shortcuts because socket.io doesn't support sending Maps
     let players = Array.from(rooms.get(roomCode)?.players);
@@ -83,12 +85,36 @@ io.on('connection', async (socket) => {
   })
 
   // After every move
-  socket.on('move', (roomCode, newOrder) => {
+  socket.on('move', (roomCode, newOrder, uuid) => {
     if (roomCode === "Loading..." || !rooms.has(roomCode)) return;
 
     // Set the new order and send it to the room
     const room = rooms.get(roomCode);
+
     if (room) {
+      // Score logic
+      // Calculate score and send it to the room
+      let correctBefore = 0,
+          correctAfter = 0,
+          correctOrder = room.correctOrder,
+          currentOrder = room.currentOrder;
+
+      // Calculate score difference
+      correctOrder.forEach((color, index) => {
+        if (color === currentOrder[index]) correctBefore++;
+        if (color === newOrder[index]) correctAfter++;
+      });
+
+
+      let player = room.players.get(uuid);
+      let score = correctAfter - correctBefore;
+
+      if (score > room.winningPlayer.score) {
+        room.winningPlayer = {uuid, score};
+      }
+
+      room?.players.set(uuid, {...player, score: player.score + score});
+
       room.currentOrder = newOrder;
       socket.in(roomCode).emit('move', newOrder);
     }
@@ -108,7 +134,16 @@ io.on('connection', async (socket) => {
       console.error(`Failed to retrieve room data for code ${roomCode}.`);
       return;
     }
-  
+
+    // Check if the current order is correct
+    if (newOrder.join('') === room.correctOrder.join('')) {
+      // Set the new order
+      room.currentOrder = newOrder;
+
+      // If correct, send the winner to the room
+      return socket.to(roomCode).emit('game-over', room.winningPlayer, newOrder);
+    }
+
     // Find next active user
     let playerArray = Array.from(room.players?.keys() || []);
   
@@ -119,9 +154,14 @@ io.on('connection', async (socket) => {
   
     // Set the new order
     room.currentOrder = newOrder;
+
+    let correctCount = 0;
+    room.correctOrder.forEach((color, index) => {
+      if (color === newOrder[index]) correctCount++;
+    });
   
     // Send the new order and the new active player to the room
-    socket.to(roomCode).emit('turn-update', newOrder, newPlayer);
+    socket.to(roomCode).emit('turn-update', newOrder, newPlayer, JSON.stringify(Array.from(room.players)), correctCount);
   });
   
 
@@ -145,9 +185,8 @@ io.on('connection', async (socket) => {
 //   correctOrder: [ 'purple', 'orange', 'red', 'green', 'white' ],
 //   currentOrder: [ 'white', 'green', 'purple', 'orange', 'red' ],
 //   players: [
-//     [ 'uuid', 'nickname' ],
-//     [ 'uuid', 'nickname' ],
-//     [ 'uuid', 'nickname' ],
+//     [ 'uuid', {name: 'John Doe', score: 2} ],
+//     [ 'uuid', {name: 'Jane Doe', score: 3} ],
 //     ...
 //   ]
 // }

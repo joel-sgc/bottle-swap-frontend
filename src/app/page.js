@@ -1,13 +1,14 @@
 'use client'
 
-import Sortable, { Swap } from 'sortablejs';
 import { Bottle } from '@/components/ui/bottle/Bottle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Sortable, { Swap } from 'sortablejs';
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import JSConfetti from 'js-confetti';
 import { v4 as uuidv4 } from 'uuid';
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 Sortable.mount(new Swap())
 
 export default function Page() { 
@@ -18,6 +19,8 @@ export default function Page() {
   const [users, setUsers] = useState(new Map());          // The users in the room
   const [uuid, setUUID] = useState('Loading...');         // The user's UUID
   const [activeuuid, setActiveuuid] = useState('');       // The UUID of the user whose turn it is
+  const [correctCount, setCorrectCount] = useState(0);
+  const [confetti, setConfetti] = useState(null);
 
   socket.on('update-users', (players) => {
     let playerData = new Map(JSON.parse(players));
@@ -34,9 +37,11 @@ export default function Page() {
   });
 
   // When it's someone else's turn
-  socket.on('turn-update', (newOrder, activePlayer) => {
+  socket.on('turn-update', (newOrder, activePlayer, players, newCount) => {
     setBottleOrder(newOrder);
-    setActiveuuid(activePlayer);  
+    setActiveuuid(activePlayer);
+    setUsers(new Map(JSON.parse(players)));
+    setCorrectCount(newCount);
   });
 
   // On Game Start
@@ -89,6 +94,15 @@ export default function Page() {
     }
   });
 
+  socket.on('game-over', (winner, newOrder) => {
+    setBottleOrder(newOrder);
+    setCorrectCount(6);
+
+    if (winner.uuid === uuid) {
+      confetti.addConfetti();
+    }
+  })
+
   useEffect(() => {
     // UUID generation and setting
     let newUUID = uuidv4();
@@ -100,6 +114,11 @@ export default function Page() {
       setUUID(newUUID)
     } else {
       setUUID(sessionStorage.getItem('bottle-swap-uuid'))
+    }
+
+    // Confetti
+    if (!confetti) {
+      setConfetti(new JSConfetti());
     }
     
     // Generate a new room code
@@ -146,7 +165,7 @@ export default function Page() {
         
         // The reason we're not using the state is because the state is not updated within this function.
         // It takes the value, but not the reference, so this function will have the wrong value.
-        socket.emit('move', itemEl.getAttribute('roomCode'), newOrder);
+        socket.emit('move', itemEl.getAttribute('roomCode'), newOrder, sessionStorage.getItem('bottle-swap-uuid'));
       } 
     });
 
@@ -195,6 +214,8 @@ export default function Page() {
 
           <hr/>
 
+          {users.get(uuid) && <h1>Correct Count: {correctCount}</h1>}
+          {users.get(uuid) && <h2>Score: {users.get(uuid).score}</h2>}
           <h2>Client UUID: {uuid}</h2>
           <h2>Room Code: {roomCode}</h2>
           <form onSubmit={async (e) => {
@@ -235,21 +256,30 @@ export default function Page() {
 
           <hr/>
 
-          <h2>Users:</h2>
-          <ul style={{paddingLeft: '40px'}}>
-            {Array.from(users.values()).length > 0 ? (
-            Array.from(users.values()).map((user, index) => (
-                <li style={{listStyle: 'initial'}} key={index}>{user}</li>
-              ))
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Username</TableHead>
+                <TableHead>Score</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from(users.values()).length > 0 ? (
+                Array.from(users.values()).map(({name, score}, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{name}</TableCell>
+                    <TableCell>{score}</TableCell>
+                  </TableRow>
+                ))
               ) : (
-              <li style={{listStyle: 'initial'}} key='Default'>Anonymous</li>
-            )}
-          </ul>
+                <TableRow key='Default'>
+                  <TableCell>{nickname}</TableCell>
+                  <TableCell>0</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-
-      </section>
-
-      <section className='flex'>
       </section>
     </main>
   );
