@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bottle } from '@/components/ui/bottle/Bottle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,19 +10,19 @@ import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import JSConfetti from 'js-confetti';
 import { v4 as uuidv4 } from 'uuid';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 Sortable.mount(new Swap())
 
 export default function Page() { 
-  const socket = io('ws://localhost:4000');
+  const socket = io('ws://127.0.0.1:4000');
   const [bottleOrder, setBottleOrder] = useState(['magenta', 'red', 'orange', 'yellow', 'green', '']);     // The order of the bottles (not the correct order)
   const [roomCode, setRoomCode] = useState('Loading...'); // The room code
   const [nickname, setNickname] = useState('Anonymous');  // The user's nickname
   const [users, setUsers] = useState(new Map());          // The users in the room
   const [uuid, setUUID] = useState('Loading...');         // The user's UUID
   const [activeuuid, setActiveuuid] = useState('');       // The UUID of the user whose turn it is
-  const [correctCount, setCorrectCount] = useState(0);
-  const [confetti, setConfetti] = useState(null);
+  const [correctCount, setCorrectCount] = useState(0);    // The number of correctl placed bottles
+  const [confetti, setConfetti] = useState(null);         // The confetti object for the winner
+  const [gameOver, setGameOver] = useState(false);        // The indicator to bring up the Play Again modal
 
   socket.on('update-users', (players) => {
     let playerData = new Map(JSON.parse(players));
@@ -94,13 +96,26 @@ export default function Page() {
     }
   });
 
+  // Game Over activity
   socket.on('game-over', (winner, newOrder) => {
+    setActiveuuid('');
     setBottleOrder(newOrder);
     setCorrectCount(6);
 
-    if (winner.uuid === uuid) {
-      confetti.addConfetti();
+
+    // For some reason, there is a weird bug where the confetti is null and the uuid is sometimes null.
+    // This would also only act up in the host client, this workaround is to check if the confetti is null
+    if (winner.uuid === sessionStorage.getItem('bottle-swap-uuid')) {
+      var confettiObject = (confetti || new JSConfetti());
+
+      if (!confetti) setConfetti(confettiObject);
+      confettiObject.addConfetti();
     }
+    
+    // Set the game over modal to open, prompts the user to play again
+    setTimeout(() => {
+      setGameOver(true);
+    }, 2000); 
   })
 
   useEffect(() => {
@@ -113,23 +128,18 @@ export default function Page() {
       sessionStorage.setItem('bottle-swap-uuid', newUUID);
       setUUID(newUUID)
     } else {
-      setUUID(sessionStorage.getItem('bottle-swap-uuid'))
-    }
-
-    // Confetti
-    if (!confetti) {
-      setConfetti(new JSConfetti());
+      setUUID(sessionStorage.getItem('bottle-swap-uuid'));
     }
     
     // Generate a new room code
     const generateRoom = async() => {
-      let data = await socket.emitWithAck('get-new-code', sessionStorage.getItem('bottle-swap-uuid'), nickname)
+      let data = await socket.emitWithAck('get-new-code', sessionStorage.getItem('bottle-swap-uuid'), nickname);
       
       setRoomCode(data.code);
       setBottleOrder(data.bottles);
     }
     generateRoom();
-  }, [])
+  }, []);
 
   // Disconnection stuff
   useEffect(() => {
@@ -156,7 +166,7 @@ export default function Page() {
         evt.clone // the clone element
         evt.pullMode;  // when item is in another sortable: `"clone"` if cloning, `true` if moving
 
-        var elemContainer = document.getElementById('bottleContainer')
+        var elemContainer = document.getElementById('bottleContainer');
 
         let newOrder = [];
         for (let i = 0; i < elemContainer.children.length; i++) {
@@ -173,9 +183,9 @@ export default function Page() {
     window.addEventListener('beforeunload', disconnect);
 
     return () => {
-      window.removeEventListener('beforeunload', disconnect)
+      window.removeEventListener('beforeunload', disconnect);
     }
-  }, [roomCode])
+  }, [roomCode]);
 
   return (
     <main className='container h-screen flex items-center justify-center flex-col gap-8'>
@@ -206,7 +216,6 @@ export default function Page() {
                 }
               
                 setBottleOrder(newOrder);
-              
                 socket.emit('turn-complete', roomCode, newOrder, uuid);
               }}>Done</Button>              
             )}
@@ -253,34 +262,44 @@ export default function Page() {
             <Input type='text' name='nickname' placeholder="Enter Nickname..."/>
             <Button type='submit'>Set Nickname</Button>
           </form>
+        </div>
+      </section>
 
-          <hr/>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Score</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from(users.values()).length > 0 ? (
-                Array.from(users.values()).map(({name, score}, index) => (
+      {/* Modal for Play Again Button */}
+      <Dialog open={gameOver} onOpenChange={setGameOver}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Game Over!</DialogTitle>
+            <DialogDescription>
+              Thank you for playing! We hope you enjoyed the game. Whether you won or lost, we'd love for you to play again. Try a different strategy, see if you can improve your score, or just have some more fun. We've got plenty of levels to keep you entertained for hours.
+            </DialogDescription>
+            <Table className='my-12'>
+              <TableHeader>
+                <h2 className='text-lg'>Leaderboard</h2>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Users sorted by score displayed in a table */}
+                {users.size > 0 && Array.from(users.values()).sort((a, b) => b.score - a.score).map(({name, score}, index) => (
                   <TableRow key={index}>
                     <TableCell>{name}</TableCell>
                     <TableCell>{score}</TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow key='Default'>
-                  <TableCell>{nickname}</TableCell>
-                  <TableCell>0</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
+                ))}
+              </TableBody>
+            </Table>
+            <Button onClick={async () => {
+              setGameOver(false);
+              let newBottleOrder = await socket.emitWithAck('play-again', roomCode, {uuid, nickname});
+              setBottleOrder(newBottleOrder);
+              setCorrectCount(0);
+              }}>Play Again</Button>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

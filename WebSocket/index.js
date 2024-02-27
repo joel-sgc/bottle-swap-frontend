@@ -6,6 +6,7 @@ const colorOptions = ['red', 'white', 'rose', 'green', 'yellow', 'orange', 'mage
 
 const io = new Server(4000);
 const rooms = new Map();
+const playersRoomSize = 3;
 
 // Imma be so incredibly honest, I was having so many issues with a lot of these socket.io events
 // I couldn't quite figure out how to get the data I needed to the right places so I took a couple
@@ -37,14 +38,6 @@ io.on('connection', async (socket) => {
     callback({code: roomCode, bottles: bottleOrders.shuffledArray});
   });
 
-  // Get users in room
-  socket.on('get-users', async (roomCode, callback) => {
-    // This is a hacky way to get the number of users in a room
-    let players = Array.from(rooms.get(roomCode).players);
-
-    callback(JSON.stringify(players));
-  });
-
   // Join room and let the other users know
   socket.on('join-room', (uuid, oldRoomCode, roomCode, nickname, callback) => {
     socket.join(roomCode);
@@ -64,7 +57,7 @@ io.on('connection', async (socket) => {
     let players = Array.from(rooms.get(roomCode)?.players);
     socket.to(roomCode).emit('update-users', JSON.stringify(players));
     
-    if (rooms.get(roomCode)?.players.size === 2) {
+    if (rooms.get(roomCode)?.players.size === playersRoomSize) {
       socket.in(roomCode).emit('start-game', (rooms.get(roomCode).activePlayer));
     }
 
@@ -140,7 +133,7 @@ io.on('connection', async (socket) => {
       // Set the new order
       room.currentOrder = newOrder;
 
-      // If correct, send the winner to the room
+      // Send the game over event to the room
       return socket.to(roomCode).emit('game-over', room.winningPlayer, newOrder);
     }
 
@@ -162,6 +155,29 @@ io.on('connection', async (socket) => {
   
     // Send the new order and the new active player to the room
     socket.to(roomCode).emit('turn-update', newOrder, newPlayer, JSON.stringify(Array.from(room.players)), correctCount);
+  });
+
+
+  socket.on('play-again', (roomCode, player, callback) => {
+    const room = rooms.get(roomCode);
+    if (!room) {
+      console.error(`Failed to retrieve room data for code ${roomCode}.`);
+      return;
+    }
+
+    let bottleOrders = getBottles(colorOptions);
+    room.currentOrder = bottleOrders.shuffledArray;
+    room.players.clear();
+    room.players.set(player.uuid, {name: player.name, score: 0});
+    room.activePlayer = room.winningPlayer.uuid;
+    room.winningPlayer = {uuid: '', score: 0};
+
+    if (room.players.size === playersRoomSize) {
+      socket.in(roomCode).emit('start-game', (rooms.get(roomCode).activePlayer));
+      console.log('starting game')
+    }
+
+    callback(bottleOrders.shuffledArray);
   });
   
 
