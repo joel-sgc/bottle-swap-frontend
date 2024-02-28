@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 Sortable.mount(new Swap())
 
 export default function Page() { 
-  const socket = io('ws://127.0.0.1:4000');
+  const socket = io('ws://bottle-swap-backend.onrender.com');
   const [bottleOrder, setBottleOrder] = useState(['magenta', 'red', 'orange', 'yellow', 'green', '']);     // The order of the bottles (not the correct order)
   const [roomCode, setRoomCode] = useState('Loading...'); // The room code
   const [nickname, setNickname] = useState('Anonymous');  // The user's nickname

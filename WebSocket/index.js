@@ -1,12 +1,11 @@
 import { Server } from 'socket.io'
 
-
 const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const colorOptions = ['red', 'white', 'rose', 'green', 'yellow', 'orange', 'magenta', ''];
 
-const io = new Server(4000);
+const io = new Server(8080, {cors: {origin: "*"}});
 const rooms = new Map();
-const playersRoomSize = 3;
+const playersRoomSize = 2;
 
 // Imma be so incredibly honest, I was having so many issues with a lot of these socket.io events
 // I couldn't quite figure out how to get the data I needed to the right places so I took a couple
@@ -195,17 +194,6 @@ io.on('connection', async (socket) => {
     }
   })
 });
-
-// Room Layout
-// roomCode: {
-//   correctOrder: [ 'purple', 'orange', 'red', 'green', 'white' ],
-//   currentOrder: [ 'white', 'green', 'purple', 'orange', 'red' ],
-//   players: [
-//     [ 'uuid', {name: 'John Doe', score: 2} ],
-//     [ 'uuid', {name: 'Jane Doe', score: 3} ],
-//     ...
-//   ]
-// }
 
 function generateRoomCode() {
   let result = '';
