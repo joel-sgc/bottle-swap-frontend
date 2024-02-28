@@ -17,6 +17,7 @@
 /build
 
 /Websocket
+/Websocket/index.js
 
 # misc
 .DS_Store

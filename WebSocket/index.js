@@ -1,9 +1,26 @@
 import { Server } from 'socket.io'
+import express from 'express';
+import http from 'http'
 
 const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const colorOptions = ['red', 'white', 'rose', 'green', 'yellow', 'orange', 'magenta', ''];
 
-const io = new Server(8080, {cors: {origin: "*"}});
+// Server setup
+const app = express();
+
+const server = http.createServer(app);
+
+app.get('/', (req, res) => {
+  res.send('<h1>Hello world</h1>');
+  console.log('hello');
+});
+
+server.listen(8080, () => {
+  console.log('listening on *:8080');
+});
+
+
+const io = new Server(server, {cors: {origin: "*"}});
 const rooms = new Map();
 const playersRoomSize = 2;
 

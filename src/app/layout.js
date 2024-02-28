@@ -8,6 +8,13 @@ export const fontSans = Roboto_Mono({
   variable: "--font-sans",
 })
 
+export function generateMetadata() {
+  return {
+    title: "Bottle Swapper Demo",
+    description: "A demo of a bottle swapper app",
+  }
+}
+
 export default function RootLayout({ children }) {  
 
   return (
